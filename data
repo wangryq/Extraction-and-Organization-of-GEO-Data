@@ -1,0 +1,128 @@
+
+#训练集-------------------------------------------------------------------------
+if(T){
+  rm(list = ls())
+  setwd("/data/nas1/yangjiajin/project/JNZK-209-new/")
+  if (!dir.exists("00.data/")) {dir.create("00.data/")}
+  setwd("00.data/")
+  ###GEO数据库下载
+  library(GEOquery)
+  library(dplyr)   #去重复需要
+  eSet<-getGEO('GSE12649',destdir='./',getGPL=F)   #选取对应的验证集
+  eset<-exprs(eSet[[1]]) 
+  metadata<-pData(eSet[[1]]) 
+  
+  gpl <- getGEO('GPL96', destdir=".")  #选取网站上的GPL号
+  anno1<-Table(gpl)[,c(1,11)] ###此处的后面位置为基因名字对应的列数，需根据情况修改
+  
+  eset<-as.data.frame(eset)
+  eset$ID <- rownames(eset)
+  #merg<-merge(eset,anno1,by="ID")
+  merg<-merge(anno1,eset,by="ID")
+  #head(merg)
+  
+  ##注意更改此处的“merg$ORF”，有些是gene symbol
+  #data <- aggregate(merg[,-1],by = list(Gene = merg$"Gene Symbol"),FUN = mean)
+  data <- merg[,-1]
+  names(data)[1] <- "Gene"
+  #将第一列的gene按///进行拆分
+  library(dplyr)
+  library(tidyr)
+  data1 <- data %>% separate(Gene, c("id","id1","id2","id3","id4","id5","id6","id7","id8"), "[/]")
+  
+  data1 <- select(data1,-c("id1","id2","id3","id4","id5","id6","id7","id8"))
+  #data1 <- select(data1,-c("Gene Symbol"))
+  data1 <- data1 %>% distinct(id, .keep_all = T)    #去重
+  data2 <- data1[-515,]                               #去除空行
+  
+  
+  rownames(data2) <- data2$id
+  data2 <- data2[,-1]            #此时为基因名转换完毕后的表达矩阵
+  data2 <- t(data2)              #转制为行名是样本名
+  data2 <- transform(data2,sample = rownames(data2))
+  
+  group_info <- as.data.frame(metadata[,c("geo_accession","source_name_ch1")])
+  
+  names(group_info)[1] <- "sample"
+  data3 <- merge(group_info,data2,by = "sample")
+  data3 <- data3[order(data3[,2],decreasing = T),]      #将数据框按分组排好
+  rownames(data3) <- 1:102
+  data5 <- data3[-c(1:35),]
+  rownames(data5) <- 1:67
+  
+  group_new <- as.data.frame(data5[,c(1,2)])    #改变顺序后的分组信息
+  colnames(group_new)<-c("id","condition")     #更改列名
+  group_new[,2][group_new[,2] == "control"] = "Control"
+  group_new[,2][group_new[,2] == "bipolar disorder"] = "Treat"
+  
+  rownames(data5) <- data5$sample
+  data4 <- data5[,-c(1,2)]       #删除多余列名并转置成想要的格式
+  data4 <- t(data4)
+  
+  write.table(group_new,file="group.txt",sep="\t",quote=F,row.names = FALSE)
+  write.table(data4,file="expr_GEO.txt",sep="\t",quote=F)
+}
+
+
+#验证集-------------------------------------------------------------------------
+if(T){
+  rm(list = ls())
+  setwd("/data/nas1/yangjiajin/project/JNZK-209-new/")
+  if (!dir.exists("00.data/")) {dir.create("00.data/")}
+  setwd("00.data/")
+  ###GEO数据库下载
+  library(GEOquery)
+  library(dplyr)   #去重复需要
+  eSet<-getGEO('GSE5388',destdir='./',getGPL=F)   #选取对应的验证集
+  eset<-exprs(eSet[[1]]) 
+  metadata<-pData(eSet[[1]]) 
+  
+  gpl <- getGEO('GPL96', destdir=".")  #选取网站上的GPL号
+  anno1<-Table(gpl)[,c(1,11)] ###此处的后面位置为基因名字对应的列数，需根据情况修改
+  
+  eset<-as.data.frame(eset)
+  eset$ID <- rownames(eset)
+  #merg<-merge(eset,anno1,by="ID")
+  merg<-merge(anno1,eset,by="ID")
+  #head(merg)
+  
+  ##注意更改此处的“merg$ORF”，有些是gene symbol
+  #data <- aggregate(merg[,-1],by = list(Gene = merg$"Gene Symbol"),FUN = mean)
+  data <- merg[,-1]
+  names(data)[1] <- "Gene"
+  #将第一列的gene按///进行拆分
+  library(dplyr)
+  library(tidyr)
+  data1 <- data %>% separate(Gene, c("id","id1","id2","id3","id4","id5","id6","id7","id8"), "[/]")
+  
+  data1 <- select(data1,-c("id1","id2","id3","id4","id5","id6","id7","id8"))
+  #data1 <- select(data1,-c("Gene Symbol"))
+  data1 <- data1 %>% distinct(id, .keep_all = T)    #去重
+  data2 <- data1[-515,]                               #去除空行
+  
+  
+  rownames(data2) <- data2$id
+  data2 <- data2[,-1]            #此时为基因名转换完毕后的表达矩阵
+  data2 <- t(data2)              #转制为行名是样本名
+  data2 <- transform(data2,sample = rownames(data2))
+  
+  group_info <- as.data.frame(metadata[,c("geo_accession","source_name_ch1")])
+  
+  names(group_info)[1] <- "sample"
+  data3 <- merge(group_info,data2,by = "sample")
+  data3 <- data3[order(data3[,2],decreasing = T),]      #将数据框按分组排好
+
+  
+  group_new <- as.data.frame(data3[,c(1,2)])    #改变顺序后的分组信息
+  colnames(group_new)<-c("id","condition")     #更改列名
+  group_new[,2][group_new[,2] == "human post-mortem brain tissue, healthy control"] = "Control"
+  group_new[,2][group_new[,2] == "human post-mortem brain tissue, bipolar disorder"] = "Treat"
+  
+  rownames(data3) <- data3$sample
+  data4 <- data3[,-c(1,2)]       #删除多余列名并转置成想要的格式
+  data4 <- t(data4)
+  
+  
+  write.table(group_new,file="group_verify.txt",sep="\t",quote=F,row.names = FALSE)
+  write.table(data4,file="expr_GSE5388.txt",sep="\t",quote=F)
+}
